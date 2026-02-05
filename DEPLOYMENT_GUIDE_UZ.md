@@ -18,6 +18,8 @@ cd backend
 > Bu usul faqat `backend` papkasidagi fayllarni yuklab oladi va PythonAnywhere-da joyni tejaydi.
 
 ### 1.2 Virtualenv yaratish va dependency'larni o'rnatish
+PythonAnywhere-da Python 3.10 ishlatish tavsiya etiladi (Django 5.x bilan moslik uchun):
+
 ```bash
 mkvirtualenv --python=/usr/bin/python3.10 venv
 pip install -r requirements.txt
