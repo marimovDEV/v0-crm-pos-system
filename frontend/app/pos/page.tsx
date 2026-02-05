@@ -99,6 +99,9 @@ export default function POSPage() {
 
         // FIX: Verify Stock Persistence
         refreshProducts()
+
+        // AUTO PRINT: Trigger receipt printing after success
+        handlePrintReceipt(sale)
       }
     } catch (e) {
       alert("Xatolik yuz berdi. Iltimos qayta urinib ko'ring.")
@@ -106,14 +109,15 @@ export default function POSPage() {
   }
 
   // FIX: Receipt Printing with Iframe
-  const handlePrintReceipt = () => {
-    if (!lastSale || !iframeRef.current) return
+  const handlePrintReceipt = (saleData?: any) => {
+    const sale = saleData || lastSale
+    if (!sale || !iframeRef.current) return
 
     const receiptHtml = `
             <!DOCTYPE html>
             <html>
             <head>
-                <title>Chek ${lastSale.receipt_id}</title>
+                <title>Chek ${sale.receipt_id}</title>
                 <style>
                     body { font-family: 'Courier New', monospace; padding: 0; margin: 0; width: 80mm; font-size: 12px; }
                     .receipt-container { padding: 10px; }
@@ -139,10 +143,10 @@ export default function POSPage() {
                     </div>
                     
                     <div class="info">
-                        <p>Chek ID: ${lastSale.receipt_id}</p>
-                        <p>Sana: ${new Date(lastSale.created_at).toLocaleString('uz-UZ')}</p>
+                        <p>Chek ID: ${sale.receipt_id}</p>
+                        <p>Sana: ${new Date(sale.created_at).toLocaleString('uz-UZ')}</p>
                         <p>Kassir: ${user?.name || 'Kassir'}</p>
-                        ${lastSale.customer_name ? `<p>Mijoz: ${lastSale.customer_name}</p>` : ''}
+                        ${sale.customer_name ? `<p>Mijoz: ${sale.customer_name}</p>` : ''}
                     </div>
 
                     <table class="items-table">
@@ -154,7 +158,7 @@ export default function POSPage() {
                             </tr>
                         </thead>
                         <tbody>
-                            ${lastSale.items.map((item: any) => `
+                            ${sale.items.map((item: any) => `
                                 <tr>
                                     <td>${item.product_name}</td>
                                     <td class="col-qty">${item.quantity}</td>
@@ -165,20 +169,20 @@ export default function POSPage() {
                     </table>
 
                     <div class="total-section">
-                        ${lastSale.discount_amount > 0 ? `
+                        ${sale.discount_amount > 0 ? `
                         <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:2px;">
                             <span>Subtotal:</span>
-                            <span>${(Number(lastSale.total_amount) + Number(lastSale.discount_amount)).toLocaleString()}</span>
+                            <span>${(Number(sale.total_amount) + Number(sale.discount_amount)).toLocaleString()}</span>
                         </div>
                         <div style="display:flex; justify-content:space-between; font-size:11px; color:red; margin-bottom:2px;">
                             <span>Chegirma:</span>
-                            <span>-${Number(lastSale.discount_amount).toLocaleString()}</span>
+                            <span>-${Number(sale.discount_amount).toLocaleString()}</span>
                         </div>
                         ` : ''}
                         
                         <div class="row">
                             <span>JAMI:</span>
-                            <span>${Number(lastSale.total_amount).toLocaleString()} so&apos;m</span>
+                            <span>${Number(sale.total_amount).toLocaleString()} so&apos;m</span>
                         </div>
                     </div>
 
