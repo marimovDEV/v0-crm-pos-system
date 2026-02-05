@@ -4,12 +4,18 @@ Ushbu qo'llanma loyihani production ga joylashtirish bo'yicha batafsil qadamlarn
 
 ## 1. Backend: PythonAnywhere (Production)
 
-### 1.1 Git orqali loyihani yuklash
-PythonAnywhere konsolida:
+### 1.1 Faqat Backendni yuklash (Sparse Checkout)
+Agar PythonAnywhere-ga faqat `backend` papkasini yuklamoqchi bo'lsangiz (frontend-siz), quyidagi buyruqlarni ishlating:
+
 ```bash
-git clone https://github.com/marimovDEV/v0-crm-pos-system.git
-cd v0-crm-pos-system/backend
+git clone --depth 1 --filter=blob:none --sparse https://github.com/marimovDEV/v0-crm-pos-system.git
+cd v0-crm-pos-system
+git sparse-checkout set backend
+cd backend
 ```
+
+> [!NOTE]
+> Bu usul faqat `backend` papkasidagi fayllarni yuklab oladi va PythonAnywhere-da joyni tejaydi.
 
 ### 1.2 Virtualenv yaratish va dependency'larni o'rnatish
 ```bash
