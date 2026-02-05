@@ -39,7 +39,7 @@ export default function ReportsPage() {
       categoryRevenue.set(p.category, (categoryRevenue.get(p.category) || 0) + revenue)
     })
 
-    const chartData = categoryRevenue.entries().map(([category, revenue]) => ({
+    const chartData = Array.from(categoryRevenue.entries()).map(([category, revenue]) => ({
       category,
       revenue,
       orders: Math.floor(revenue / 5000) + 1,
@@ -80,17 +80,19 @@ export default function ReportsPage() {
       return d.toISOString().split('T')[0];
     }).reverse();
 
-    const statsByDate = new Map();
+    const statsByDate = new Map<string, { revenue: number, orders: number }>();
     last7Days.forEach(date => statsByDate.set(date, { revenue: 0, orders: 0 }));
 
     salesData.forEach((sale: any) => {
       const date = sale.created_at?.split('T')[0] || sale.date; // Handle both formats if needed
       if (statsByDate.has(date)) {
         const current = statsByDate.get(date);
-        statsByDate.set(date, {
-          revenue: current.revenue + Number(sale.total_amount),
-          orders: current.orders + 1
-        });
+        if (current) {
+          statsByDate.set(date, {
+            revenue: current.revenue + Number(sale.total_amount),
+            orders: current.orders + 1
+          });
+        }
       }
     });
 

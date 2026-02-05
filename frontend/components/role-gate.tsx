@@ -8,9 +8,9 @@ interface RoleGateProps {
   fallback?: React.ReactNode
 }
 
-export function RoleGate({ user, allowedRoles, children, fallback = null }: RoleGateProps) {
+export function RoleGate({ user, allowedRoles, children, fallback = null }: RoleGateProps): React.ReactElement | null {
   if (!user || !allowedRoles.includes(user.role)) {
-    return fallback
+    return (fallback as React.ReactElement | null)
   }
 
   return <>{children}</>

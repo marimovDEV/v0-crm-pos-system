@@ -1,8 +1,7 @@
+/* eslint-disable react/no-unescaped-entities */
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
+import React, { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -52,6 +51,21 @@ export default function POSPage() {
       }).catch(err => console.error("Failed to fetch branches", err))
     })
   }, [])
+
+  const {
+    cartItems,
+    addToCart,
+    removeFromCart,
+    clearCart,
+    calculateTotal,
+    paymentMethod,
+    setPaymentMethod,
+    discountAmount,
+    setDiscountAmount,
+    discountPercent,
+    setDiscountPercent,
+    completeSale,
+  } = usePOS()
 
   // Barcode skaneri - Enter tugmasida mahsulotni qo'shish
   const handleBarcodeInput = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -121,7 +135,7 @@ export default function POSPage() {
                 <div class="receipt-container">
                     <div class="header">
                         <h2>STROY MARKET</h2>
-                        <p>Qurilish Mollari Do'koni</p>
+                        <p>Qurilish Mollari Do&apos;koni</p>
                     </div>
                     
                     <div class="info">
@@ -164,7 +178,7 @@ export default function POSPage() {
                         
                         <div class="row">
                             <span>JAMI:</span>
-                            <span>${Number(lastSale.total_amount).toLocaleString()} so'm</span>
+                            <span>${Number(lastSale.total_amount).toLocaleString()} so&apos;m</span>
                         </div>
                     </div>
 
@@ -292,7 +306,7 @@ export default function POSPage() {
                     <div className="flex items-end justify-between">
                       <div>
                         <p className="text-sm font-bold text-slate-600">{product.sellPrice.toLocaleString()}</p>
-                        <p className="text-xs text-muted-foreground">so'm / {product.unit}</p>
+                        <p className="text-xs text-muted-foreground">so&apos;m / {product.unit}</p>
                       </div>
                       <Badge variant={displayStock > 5 ? "default" : "destructive"} className="text-xs">
                         {displayStock} {product.unit}
@@ -332,7 +346,7 @@ export default function POSPage() {
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
                       <p className="font-medium text-sm line-clamp-1">{product.name}</p>
-                      <p className="text-xs text-muted-foreground">{product.sellPrice.toLocaleString()} so'm / {product.unit}</p>
+                      <p className="text-xs text-muted-foreground">{product.sellPrice.toLocaleString()} so&apos;m / {product.unit}</p>
                     </div>
                     <button onClick={() => removeFromCart(product.id)} className="text-red-500 hover:text-red-700 p-1">
                       <X className="w-4 h-4" />
@@ -427,7 +441,7 @@ export default function POSPage() {
               )}
               <div className="flex justify-between text-sm font-bold border-t pt-1 mt-1">
                 <span>Jami:</span>
-                <span className="text-amber-600">{totals.total.toLocaleString()} so'm</span>
+                <span className="text-amber-600">{totals.total.toLocaleString()} so&apos;m</span>
               </div>
             </div>
 
@@ -453,7 +467,7 @@ export default function POSPage() {
               disabled={cartItems.length === 0}
             >
               <ShoppingCart className="w-4 h-4 mr-2" />
-              To'lashni Tugatish ({totals.total.toLocaleString()} so'm)
+              To&apos;lashni Tugatish ({totals.total.toLocaleString()} so&apos;m)
             </Button>
           </div>
         )}

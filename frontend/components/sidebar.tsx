@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
-import { LayoutDashboard, ShoppingCart, Package, Users, FileText, Settings, LogOut, Building2, Warehouse, BookOpen, BarChart3 } from "lucide-react"
+import { LayoutDashboard, ShoppingCart, Package, Settings, LogOut, Building2, Warehouse, BookOpen, BarChart3 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"

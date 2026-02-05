@@ -21,7 +21,7 @@ export default function DebtsPage() {
     dueDate: "",
     notes: "",
   })
-  const [payAmounts, setPayAmounts] = useState({}) // New state to hold pay amounts for each debt
+  const [payAmounts, setPayAmounts] = useState<Record<string, string>>({}) // New state to hold pay amounts for each debt
 
   const filteredDebts = debts.filter((d) => d.customerName.toLowerCase().includes(searchQuery.toLowerCase()))
 

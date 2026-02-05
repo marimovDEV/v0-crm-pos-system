@@ -69,6 +69,13 @@ export function usePOS() {
     [cartItems, discountAmount, discountPercent],
   )
 
+  // Sahuni tozalash
+  const clearCart = useCallback(() => {
+    setCartItems(new Map())
+    setDiscountAmount(0)
+    setDiscountPercent(0)
+  }, [])
+
   // Savdoni yakunlash
   const completeSale = useCallback(
     async (products: Product[], userId: string, customerId?: string, debtAmount?: number, branchId?: string) => {
@@ -99,9 +106,7 @@ export function usePOS() {
         const response = await api.post('/sales/', saleData);
 
         // Sahu tozalash
-        setCartItems(new Map())
-        setDiscountAmount(0)
-        setDiscountPercent(0)
+        clearCart()
 
         return response.data;
       } catch (error) {
@@ -109,13 +114,14 @@ export function usePOS() {
         throw error;
       }
     },
-    [cartItems, discountAmount, discountPercent, paymentMethod, calculateTotal],
+    [cartItems, discountAmount, discountPercent, paymentMethod, calculateTotal, clearCart],
   )
 
   return {
     cartItems: Array.from(cartItems.values()),
     addToCart,
     removeFromCart,
+    clearCart,
     calculateTotal,
     completeSale,
     setDiscountAmount,
