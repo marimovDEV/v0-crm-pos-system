@@ -117,22 +117,32 @@ export default function POSPage() {
             <!DOCTYPE html>
             <html>
             <head>
+                <meta charset="UTF-8">
                 <title>Chek ${sale.receipt_id}</title>
                 <style>
-                    body { font-family: 'Courier New', monospace; padding: 0; margin: 0; width: 80mm; font-size: 12px; }
-                    .receipt-container { padding: 10px; }
-                    .header { text-align: center; margin-bottom: 10px; border-bottom: 1px dashed #000; padding-bottom: 8px; }
-                    .header h2 { margin: 0 0 5px 0; font-size: 16px; font-weight: bold; text-transform: uppercase; }
-                    .info { margin-bottom: 10px; font-size: 11px; }
-                    .info p { margin: 2px 0; }
-                    .items-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
-                    .items-table th { text-align: left; border-bottom: 1px dashed #000; font-size: 11px; padding: 4px 0; }
-                    .items-table td { padding: 4px 0; vertical-align: top; }
-                    .col-qty { text-align: right; width: 40px; }
-                    .col-price { text-align: right; width: 60px; }
-                    .total-section { border-top: 1px dashed #000; padding-top: 8px; margin-top: 5px; }
-                    .row { display: flex; justify-content: space-between; font-weight: bold; font-size: 14px; margin-top: 5px; }
-                    .footer { margin-top: 20px; text-align: center; font-size: 11px; font-style: italic; }
+                    @page { size: auto; margin: 0mm; }
+                    body { 
+                        font-family: 'Courier New', monospace; 
+                        padding: 2mm; 
+                        margin: 0; 
+                        width: 72mm; 
+                        font-size: 11px; 
+                        line-height: 1.1; 
+                        color: #000;
+                    }
+                    .receipt-container { width: 100%; }
+                    .header { text-align: center; margin-bottom: 5px; border-bottom: 1px dashed #000; padding-bottom: 3px; }
+                    .header h2 { margin: 0 0 2px 0; font-size: 14px; font-weight: bold; text-transform: uppercase; }
+                    .info { margin-bottom: 5px; font-size: 9px; }
+                    .info p { margin: 1px 0; }
+                    .items-table { width: 100%; border-collapse: collapse; margin-bottom: 5px; }
+                    .items-table th { text-align: left; border-bottom: 1px dashed #000; font-size: 9px; padding: 2px 0; }
+                    .items-table td { padding: 2px 0; vertical-align: top; font-size: 9px; }
+                    .col-qty { text-align: right; width: 20px; }
+                    .col-price { text-align: right; width: 50px; }
+                    .total-section { border-top: 1px dashed #000; padding-top: 3px; margin-top: 2px; }
+                    .row { display: flex; justify-content: space-between; font-weight: bold; font-size: 12px; margin-top: 2px; }
+                    .footer { margin-top: 10px; text-align: center; font-size: 9px; font-style: italic; border-top: 1px dashed #000; padding-top: 3px; }
                 </style>
             </head>
             <body>
@@ -158,7 +168,7 @@ export default function POSPage() {
                             </tr>
                         </thead>
                         <tbody>
-                            ${sale.items.map((item: any) => `
+                            ${(sale.items || []).map((item: any) => `
                                 <tr>
                                     <td>${item.product_name}</td>
                                     <td class="col-qty">${item.quantity}</td>
@@ -170,11 +180,11 @@ export default function POSPage() {
 
                     <div class="total-section">
                         ${sale.discount_amount > 0 ? `
-                        <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:2px;">
+                        <div style="display:flex; justify-content:space-between; font-size:9px; margin-bottom:1px;">
                             <span>Subtotal:</span>
                             <span>${(Number(sale.total_amount) + Number(sale.discount_amount)).toLocaleString()}</span>
                         </div>
-                        <div style="display:flex; justify-content:space-between; font-size:11px; color:red; margin-bottom:2px;">
+                        <div style="display:flex; justify-content:space-between; font-size:9px; color:red; margin-bottom:1px;">
                             <span>Chegirma:</span>
                             <span>-${Number(sale.discount_amount).toLocaleString()}</span>
                         </div>
@@ -201,11 +211,13 @@ export default function POSPage() {
       doc.write(receiptHtml)
       doc.close()
 
-      // Wait for content to load then print
+      // Give extra time for rendering/styles to apply
       setTimeout(() => {
-        iframeRef.current?.contentWindow?.focus()
-        iframeRef.current?.contentWindow?.print()
-      }, 500)
+        if (iframeRef.current?.contentWindow) {
+          iframeRef.current.contentWindow.focus()
+          iframeRef.current.contentWindow.print()
+        }
+      }, 800)
     }
   }
 
