@@ -108,7 +108,7 @@ export default function POSPage() {
     }
   }
 
-  // FIX: Receipt Printing with Iframe
+  // FIX: Receipt Printing with Iframe - Refined for reliability and 80mm printers
   const handlePrintReceipt = (saleData?: any) => {
     const sale = saleData || lastSale
     if (!sale || !iframeRef.current) return
@@ -118,53 +118,74 @@ export default function POSPage() {
             <html>
             <head>
                 <meta charset="UTF-8">
-                <title>Chek ${sale.receipt_id}</title>
                 <style>
-                    @page { size: auto; margin: 0mm; }
+                    @page { 
+                        size: 80mm auto;
+                        margin: 0;
+                    }
+                    * {
+                        box-sizing: border-box;
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
+                    }
                     body { 
-                        font-family: 'Courier New', monospace; 
-                        padding: 2mm; 
-                        margin: 0; 
-                        width: 72mm; 
+                        font-family: 'Courier New', Courier, monospace; 
+                        width: 76mm; 
+                        margin: 0 auto;
+                        padding: 2mm 1mm;
                         font-size: 11px; 
-                        line-height: 1.1; 
+                        line-height: 1.2; 
                         color: #000;
+                        background-color: #fff;
                     }
                     .receipt-container { width: 100%; }
-                    .header { text-align: center; margin-bottom: 5px; border-bottom: 1px dashed #000; padding-bottom: 3px; }
-                    .header h2 { margin: 0 0 2px 0; font-size: 14px; font-weight: bold; text-transform: uppercase; }
-                    .info { margin-bottom: 5px; font-size: 9px; }
-                    .info p { margin: 1px 0; }
-                    .items-table { width: 100%; border-collapse: collapse; margin-bottom: 5px; }
-                    .items-table th { text-align: left; border-bottom: 1px dashed #000; font-size: 9px; padding: 2px 0; }
-                    .items-table td { padding: 2px 0; vertical-align: top; font-size: 9px; }
-                    .col-qty { text-align: right; width: 20px; }
-                    .col-price { text-align: right; width: 50px; }
-                    .total-section { border-top: 1px dashed #000; padding-top: 3px; margin-top: 2px; }
-                    .row { display: flex; justify-content: space-between; font-weight: bold; font-size: 12px; margin-top: 2px; }
-                    .footer { margin-top: 10px; text-align: center; font-size: 9px; font-style: italic; border-top: 1px dashed #000; padding-top: 3px; }
+                    .header { text-align: center; margin-bottom: 5px; border-bottom: 1px dashed #000; padding-bottom: 5px; }
+                    .header h2 { margin: 0 0 2px 0; font-size: 16px; font-weight: bold; text-transform: uppercase; }
+                    .header p { margin: 0; font-size: 10px; }
+                    .info { margin: 5px 0; font-size: 10px; border-bottom: 1px dashed #000; padding-bottom: 5px; }
+                    .info p { margin: 2px 0; display: flex; justify-content: space-between; }
+                    .items-table { width: 100%; border-collapse: collapse; margin: 5px 0; }
+                    .items-table th { text-align: left; border-bottom: 1px solid #000; font-size: 10px; padding: 2px 0; }
+                    .items-table td { padding: 4px 0; vertical-align: top; font-size: 10px; border-bottom: 0.5px solid #eee; }
+                    .col-qty { text-align: center; width: 30px; }
+                    .col-price { text-align: right; width: 70px; }
+                    .total-section { border-top: 2px solid #000; padding-top: 5px; margin-top: 5px; }
+                    .sub-row { display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 2px; }
+                    .total-row { display: flex; justify-content: space-between; font-weight: bold; font-size: 14px; margin-top: 5px; border-top: 1px solid #000; padding-top: 5px; }
+                    .footer { 
+                        margin-top: 15px; 
+                        text-align: center; 
+                        font-size: 10px; 
+                        border-top: 1px dashed #000; 
+                        padding-top: 8px;
+                        padding-bottom: 15px;
+                    }
+                    .footer p { margin: 2px 0; }
+                    @media print {
+                        body { width: 76mm; }
+                    }
                 </style>
             </head>
             <body>
                 <div class="receipt-container">
                     <div class="header">
                         <h2>STROY MARKET</h2>
-                        <p>Qurilish Mollari Do&apos;koni</p>
+                        <p>QURILISH MOLLARI DO'KONI</p>
                     </div>
                     
                     <div class="info">
-                        <p>Chek ID: ${sale.receipt_id}</p>
-                        <p>Sana: ${new Date(sale.created_at).toLocaleString('uz-UZ')}</p>
-                        <p>Kassir: ${user?.name || 'Kassir'}</p>
-                        ${sale.customer_name ? `<p>Mijoz: ${sale.customer_name}</p>` : ''}
+                        <p><span>Chek №:</span> <span>${sale.receipt_id}</span></p>
+                        <p><span>Sana:</span> <span>${new Date(sale.created_at).toLocaleString('uz-UZ').replace(',', '')}</span></p>
+                        <p><span>Sotuvchi:</span> <span>${user?.name || 'Kassir'}</span></p>
+                        ${sale.customer_name ? `<p><span>Mijoz:</span> <span>${sale.customer_name}</span></p>` : ''}
                     </div>
 
                     <table class="items-table">
                         <thead>
                             <tr>
                                 <th>Mahsulot</th>
-                                <th class="col-qty">Soni</th>
-                                <th class="col-price">Jami</th>
+                                <th class="col-qty">Son</th>
+                                <th class="col-price">Narx</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -180,24 +201,25 @@ export default function POSPage() {
 
                     <div class="total-section">
                         ${sale.discount_amount > 0 ? `
-                        <div style="display:flex; justify-content:space-between; font-size:9px; margin-bottom:1px;">
+                        <div class="sub-row">
                             <span>Subtotal:</span>
-                            <span>${(Number(sale.total_amount) + Number(sale.discount_amount)).toLocaleString()}</span>
+                            <span>${(Number(sale.total_amount) + Number(sale.discount_amount)).toLocaleString()} so'm</span>
                         </div>
-                        <div style="display:flex; justify-content:space-between; font-size:9px; color:red; margin-bottom:1px;">
+                        <div class="sub-row" style="color: #000;">
                             <span>Chegirma:</span>
-                            <span>-${Number(sale.discount_amount).toLocaleString()}</span>
+                            <span>-${Number(sale.discount_amount).toLocaleString()} so'm</span>
                         </div>
                         ` : ''}
                         
-                        <div class="row">
+                        <div class="total-row">
                             <span>JAMI:</span>
-                            <span>${Number(sale.total_amount).toLocaleString()} so&apos;m</span>
+                            <span>${Number(sale.total_amount).toLocaleString()} so'm</span>
                         </div>
                     </div>
 
                     <div class="footer">
                         <p>Xaridingiz uchun rahmat!</p>
+                        <p>STROY MARKET - Sifat va ishonch!</p>
                         <p>Tel: +998 90 123 45 67</p>
                     </div>
                 </div>
@@ -211,13 +233,18 @@ export default function POSPage() {
       doc.write(receiptHtml)
       doc.close()
 
-      // Give extra time for rendering/styles to apply
-      setTimeout(() => {
+      // Small delay to ensure styles and layouts are computed within the iframe
+      const printWhenReady = () => {
         if (iframeRef.current?.contentWindow) {
           iframeRef.current.contentWindow.focus()
           iframeRef.current.contentWindow.print()
         }
-      }, 800)
+      }
+
+      if (iframeRef.current.contentWindow) {
+        // Try printing after a slightly longer delay to ensure rendering completion
+        setTimeout(printWhenReady, 500)
+      }
     }
   }
 
@@ -234,7 +261,11 @@ export default function POSPage() {
 
   return (
     <main className="flex h-full bg-background relative">
-      <iframe ref={iframeRef} className="hidden absolute w-0 h-0 print:block" title="receipt" />
+      <iframe
+        ref={iframeRef}
+        style={{ position: 'absolute', width: '0', height: '0', border: 'none', visibility: 'hidden' }}
+        title="receipt"
+      />
 
       {/* Mahsulotlar - Chap qism */}
       <div className="flex-1 overflow-auto border-r">
