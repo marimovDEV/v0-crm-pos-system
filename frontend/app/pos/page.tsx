@@ -174,9 +174,9 @@ export default function POSPage() {
                     </div>
                     
                     <div class="info">
-                        <p><span>Chek №:</span> <span>${sale.receipt_id}</span></p>
-                        <p><span>Sana:</span> <span>${new Date(sale.created_at).toLocaleString('uz-UZ').replace(',', '')}</span></p>
-                        <p><span>Sotuvchi:</span> <span>${user?.name || 'Kassir'}</span></p>
+                        <p><span>Chek №:</span> <span>${sale.receipt_id || 'N/A'}</span></p>
+                        <p><span>Sana:</span> <span>${sale.created_at ? new Date(sale.created_at).toLocaleString('uz-UZ').replace(',', '') : new Date().toLocaleString('uz-UZ').replace(',', '')}</span></p>
+                        <p><span>Sotuvchi:</span> <span>${user?.name || user?.full_name || 'Kassir'}</span></p>
                         ${sale.customer_name ? `<p><span>Mijoz:</span> <span>${sale.customer_name}</span></p>` : ''}
                     </div>
 
@@ -233,18 +233,25 @@ export default function POSPage() {
       doc.write(receiptHtml)
       doc.close()
 
-      // Small delay to ensure styles and layouts are computed within the iframe
-      const printWhenReady = () => {
-        if (iframeRef.current?.contentWindow) {
-          iframeRef.current.contentWindow.focus()
-          iframeRef.current.contentWindow.print()
-        }
-      }
+      // FIX: Improved print triggering for reliability
+      const printFrame = () => {
+        if (!iframeRef.current || !iframeRef.current.contentWindow) return;
 
-      if (iframeRef.current.contentWindow) {
-        // Try printing after a slightly longer delay to ensure rendering completion
-        setTimeout(printWhenReady, 500)
-      }
+        try {
+          iframeRef.current.contentWindow.focus();
+          iframeRef.current.contentWindow.print();
+        } catch (e) {
+          console.error("Print failed:", e);
+        }
+      };
+
+      // Use a combination of onload and timeout for reliability
+      iframeRef.current.onload = () => {
+        setTimeout(printFrame, 200);
+      };
+
+      // Fallback if onload doesn't fire (sometimes happens with doc.write)
+      setTimeout(printFrame, 500);
     }
   }
 
@@ -263,7 +270,16 @@ export default function POSPage() {
     <main className="flex h-full bg-background relative">
       <iframe
         ref={iframeRef}
-        style={{ position: 'absolute', width: '0', height: '0', border: 'none', visibility: 'hidden' }}
+        style={{
+          position: 'fixed',
+          right: '100%',
+          bottom: '100%',
+          width: '80mm',
+          height: '0',
+          border: 'none',
+          opacity: '0',
+          zIndex: -1
+        }}
         title="receipt"
       />
 

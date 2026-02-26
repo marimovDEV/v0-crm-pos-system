@@ -60,7 +60,7 @@ export default function ReportsPage() {
   // Real Sales Data
   const [salesData, setSalesData] = useState<any[]>([])
 
-  useMemo(() => {
+  useEffect(() => {
     const fetchSales = async () => {
       try {
         const response = await api.get('/sales/');
