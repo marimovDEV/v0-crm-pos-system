@@ -6,6 +6,8 @@ import type React from "react"
 import { useEffect } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
+import { Sidebar } from "@/components/sidebar"
+import { BottomNav } from "@/components/bottom-nav"
 
 export function NavGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -32,14 +34,20 @@ export function NavGuard({ children }: { children: React.ReactNode }) {
     )
   }
 
-  // Login sahifasi uchun har doim ruxsat beramiz
+  // Login sahifasi uchun Sidebar kerak emas
   if (pathname === "/") {
-    return <>{children}</>
+    return <main className="flex-1 h-screen overflow-auto">{children}</main>
   }
 
   if (!isAuthenticated) {
     return null
   }
 
-  return <>{children}</>
+  return (
+    <div className="flex h-screen bg-background">
+      <Sidebar />
+      <main className="flex-1 overflow-auto pb-20 md:pb-0">{children}</main>
+      <BottomNav />
+    </div>
+  )
 }

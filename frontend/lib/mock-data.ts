@@ -12,7 +12,6 @@ export const MOCK_PRODUCTS: Product[] = [
     sellPrice: 65000,
     minStock: 10,
     currentStock: 45,
-    supplier: "LaFarge",
     createdAt: new Date().toISOString(),
   },
   {
@@ -25,7 +24,6 @@ export const MOCK_PRODUCTS: Product[] = [
     sellPrice: 250000,
     minStock: 5,
     currentStock: 12,
-    supplier: "Qum zavodi",
     createdAt: new Date().toISOString(),
   },
   {
@@ -38,7 +36,6 @@ export const MOCK_PRODUCTS: Product[] = [
     sellPrice: 55000,
     minStock: 8,
     currentStock: 28,
-    supplier: "Viloyat plikasi",
     createdAt: new Date().toISOString(),
   },
   {
@@ -51,7 +48,6 @@ export const MOCK_PRODUCTS: Product[] = [
     sellPrice: 40000,
     minStock: 15,
     currentStock: 50,
-    supplier: "Polymer",
     createdAt: new Date().toISOString(),
   },
   {
@@ -64,7 +60,6 @@ export const MOCK_PRODUCTS: Product[] = [
     sellPrice: 50000,
     minStock: 20,
     currentStock: 2,
-    supplier: "Metallurgiya zavodi",
     createdAt: new Date().toISOString(),
   },
 ]

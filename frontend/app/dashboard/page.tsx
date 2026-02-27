@@ -19,72 +19,33 @@ import { AlertCircle, Package, Users, DollarSign, TrendingUp } from "lucide-reac
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/hooks/use-auth"
 import { useProducts } from "@/hooks/use-products"
-import { useDebts } from "@/hooks/use-debts"
+import { useDashboard } from "@/hooks/use-dashboard"
 import { RoleGate } from "@/components/role-gate"
 
 export default function DashboardPage() {
   const { user } = useAuth()
   const { products, loading: productsLoading } = useProducts()
-  const { debts, totalDebt, overdueDebt } = useDebts()
-
-  // Hisob-kitoblar
-  const stats = useMemo(() => {
-    const totalInventoryValue = products.reduce((sum, p) => sum + p.sellPrice * p.currentStock, 0)
-    const lowStockCount = products.filter((p) => p.currentStock <= p.minStock).length
-    const totalProducts = products.length
-
-    return {
-      totalInventoryValue,
-      lowStockCount,
-      totalProducts,
-      totalDebts: totalDebt,
-      overdueDebts: overdueDebt,
-      activeCustomers: debts.filter((d) => d.status === "active").length,
-    }
-  }, [products, debts, totalDebt, overdueDebt])
-
-  // Kategoriya bo'yicha mahsulotlar
-  const categoryData = useMemo(() => {
-    const categories = new Map<string, number>()
-    products.forEach((p) => {
-      categories.set(p.category, (categories.get(p.category) || 0) + p.currentStock)
-    })
-    return Array.from(categories.entries())
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
-  }, [products])
-
-  // So'ngi 6 kunning savdo trendi (mock data)
-  const salesTrend = useMemo(() => {
-    const days = ["Dush", "Sesh", "Chor", "Pay", "Jum", "Sha"]
-    return days.map((day, i) => ({
-      day,
-      sales: Math.floor(Math.random() * 50000) + 20000,
-      orders: Math.floor(Math.random() * 30) + 10,
-    }))
-  }, [])
-
-  // Top 5 kam qoldiq mahsulotlar
-  const lowStockProducts = useMemo(() => {
-    return products
-      .filter((p) => p.currentStock <= p.minStock)
-      .sort((a, b) => a.currentStock - b.currentStock)
-      .slice(0, 5)
-  }, [products])
-
-  // Top 5 qimmatli mahsulotlar
-  const topValueProducts = useMemo(() => {
-    return products.sort((a, b) => b.sellPrice * b.currentStock - a.sellPrice * a.currentStock).slice(0, 5)
-  }, [products])
+  const { stats: dashboardStats, loading: dashboardLoading } = useDashboard()
 
   const COLORS = ["#475569", "#f59e0b", "#ef4444", "#10b981", "#8b5cf6", "#06b6d4"]
 
-  if (productsLoading) {
+  const stats = dashboardStats || {
+    today_sales: 0,
+    today_profit: 0,
+    total_debt: 0,
+    inventory_value: 0,
+    category_breakdown: [],
+    low_stock_products: [],
+    top_products: [],
+    chart_data: []
+  }
+
+  if (dashboardLoading || productsLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="w-12 h-12 mx-auto mb-4 border-4 border-slate-300 border-t-amber-500 rounded-full animate-spin"></div>
-          <p className="text-slate-600">Yuklanyapti...</p>
+          <div className="w-12 h-12 mx-auto mb-4 border-4 border-slate-300 border-t-blue-500 rounded-full animate-spin"></div>
+          <p className="text-slate-600">Dashboard yuklanmoqda...</p>
         </div>
       </div>
     )
@@ -93,122 +54,92 @@ export default function DashboardPage() {
   return (
     <RoleGate user={user} allowedRoles={["admin", "super-admin"]}>
       <main className="flex-1 overflow-auto">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-slate-600 to-slate-700 text-white p-6 sticky top-0 z-10">
-          <h1 className="text-2xl font-bold mb-1">Bosh Panel</h1>
-          <p className="text-slate-200 text-sm">Xush kelibsiz, {user?.name}! Bugungi kunning statistikasi</p>
+        <div className="bg-gradient-to-r from-slate-600 to-slate-700 text-white p-6 sticky top-0 z-10 flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold mb-1">Bosh Panel</h1>
+            <p className="text-slate-200 text-sm">Xush kelibsiz, {user?.name}! Bugungi statistikalar</p>
+          </div>
+          <Badge variant="secondary" className="bg-white/20 text-white border-none backdrop-blur-sm">
+            Sana: {new Date().toLocaleDateString()}
+          </Badge>
         </div>
 
         <div className="p-6">
-          {/* Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            {/* Total Inventory Value */}
-            <Card>
+            <Card className="border-none shadow-sm bg-blue-50/30">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Bugungi Savdo</CardTitle>
+                <DollarSign className="w-4 h-4 text-blue-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.today_sales.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground mt-1">Foyda: {stats.today_profit.toLocaleString()} so'm</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-none shadow-sm bg-red-50/30">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Umumiy Qarz</CardTitle>
+                <AlertCircle className="w-4 h-4 text-red-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.total_debt.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground mt-1 text-red-600 font-medium">Qaytarilishi kerak</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-none shadow-sm bg-slate-50/30">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Zaxira Qiymati</CardTitle>
-                <Package className="w-5 h-5 text-slate-400" />
+                <Package className="w-4 h-4 text-slate-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.totalInventoryValue.toLocaleString()}</div>
-                <p className="text-xs text-slate-600 mt-1">{stats.totalProducts} ta mahsulot</p>
+                <div className="text-2xl font-bold">{stats.inventory_value.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground mt-1">{products.length} turdagi mahsulot</p>
               </CardContent>
             </Card>
 
-            {/* Total Debts */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Jami Qarz</CardTitle>
-                <DollarSign className="w-5 h-5 text-red-400" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-red-600">{stats.totalDebts.toLocaleString()}</div>
-                <p className="text-xs text-red-600 mt-1">{stats.overdueDebts.toLocaleString()} muddati o'tgan</p>
-              </CardContent>
-            </Card>
-
-            {/* Low Stock Alert */}
-            <Card>
+            <Card className="border-none shadow-sm bg-orange-50/30">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Kam Qoldiq</CardTitle>
-                <AlertCircle className="w-5 h-5 text-orange-400" />
+                <TrendingUp className="w-4 h-4 text-orange-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-orange-600">{stats.lowStockCount}</div>
-                <p className="text-xs text-muted-foreground mt-1">Darhol qo'shish kerak</p>
-              </CardContent>
-            </Card>
-
-            {/* Active Customers */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Faol Qarzdorlar</CardTitle>
-                <Users className="w-5 h-5 text-slate-400" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.activeCustomers}</div>
-                <p className="text-xs text-muted-foreground mt-1">Qarz to'lovini kutayotgan</p>
+                <div className="text-2xl font-bold text-orange-600">{stats.low_stock_products.length}</div>
+                <p className="text-xs text-muted-foreground mt-1">Mahsulotlarni to'ldirish kerak</p>
               </CardContent>
             </Card>
           </div>
 
-          {/* Charts Row */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            {/* Sales Trend */}
             <Card>
-              <CardHeader>
-                <CardTitle>Savdo Trendi</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle>Savdo Trendi (7 kunlik)</CardTitle></CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={salesTrend}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="day" />
-                    <YAxis yAxisId="left" />
-                    <YAxis yAxisId="right" orientation="right" />
+                  <LineChart data={stats.chart_data}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} />
+                    <YAxis axisLine={false} tickLine={false} />
                     <Tooltip />
-                    <Legend />
-                    <Line
-                      yAxisId="left"
-                      type="monotone"
-                      dataKey="sales"
-                      stroke="#475569"
-                      strokeWidth={2}
-                      name="Savdo (so'm)"
-                    />
-                    <Line
-                      yAxisId="right"
-                      type="monotone"
-                      dataKey="orders"
-                      stroke="#f59e0b"
-                      strokeWidth={2}
-                      name="Cheklar"
-                    />
+                    <Line type="monotone" dataKey="total" stroke="#475569" strokeWidth={3} dot={{ fill: '#475569' }} />
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
 
-            {/* Category Distribution */}
             <Card>
-              <CardHeader>
-                <CardTitle>Kategoriya Taqsimoti</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle>Kategoriya Taqsimoti</CardTitle></CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
                     <Pie
-                      data={categoryData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, value }) => `${name}`}
-                      outerRadius={80}
-                      fill="#8884d8"
+                      data={stats.category_breakdown}
+                      cx="50%" cy="50%"
+                      innerRadius={60} outerRadius={80} paddingAngle={5}
                       dataKey="value"
+                      nameKey="category"
                     >
-                      {categoryData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
+                      {stats.category_breakdown.map((_: any, index: number) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
                     </Pie>
                     <Tooltip />
                   </PieChart>
@@ -217,65 +148,37 @@ export default function DashboardPage() {
             </Card>
           </div>
 
-          {/* Data Tables Row */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Low Stock Products */}
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <AlertCircle className="w-5 h-5 text-orange-600" />
-                  Kam Qoldiq Mahsulotlar
-                </CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle>Eng Ko'p Sotilganlar</CardTitle></CardHeader>
               <CardContent>
-                {lowStockProducts.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">Kam qoldiq mahsulot yo'q</p>
-                ) : (
-                  <div className="space-y-3">
-                    {lowStockProducts.map((product) => (
-                      <div key={product.id} className="flex items-center justify-between pb-3 border-b last:border-b-0">
-                        <div className="flex-1">
-                          <p className="font-medium text-sm line-clamp-1">{product.name}</p>
-                          <p className="text-xs text-muted-foreground">{product.category}</p>
-                        </div>
-                        <div className="text-right">
-                          <Badge variant="destructive" className="text-xs">
-                            {product.currentStock}/{product.minStock}
-                          </Badge>
-                          <p className="text-xs font-semibold mt-1">{product.supplier}</p>
-                        </div>
+                <div className="space-y-4">
+                  {stats.top_products.map((item: any, idx: number) => (
+                    <div key={idx} className="flex items-center justify-between pb-3 border-b last:border-b-0">
+                      <div>
+                        <p className="font-semibold text-sm">{item.product__name}</p>
+                        <p className="text-xs text-muted-foreground">Sotilgan miqdor</p>
                       </div>
-                    ))}
-                  </div>
-                )}
+                      <Badge variant="secondary">{item.quantity} ta</Badge>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
 
-            {/* Top Value Products */}
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-green-600" />
-                  Eng Qimmatli Mahsulotlar
-                </CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle>Kam Qoldiq Mahsulotlar</CardTitle></CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {topValueProducts.slice(0, 5).map((product) => {
-                    const value = product.sellPrice * product.currentStock
-                    return (
-                      <div key={product.id} className="flex items-center justify-between pb-3 border-b last:border-b-0">
-                        <div className="flex-1">
-                          <p className="font-medium text-sm line-clamp-1">{product.name}</p>
-                          <p className="text-xs text-muted-foreground">{product.currentStock} ta</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-bold text-sm">{value.toLocaleString()}</p>
-                          <p className="text-xs text-slate-600">{product.sellPrice.toLocaleString()}/ta</p>
-                        </div>
+                <div className="space-y-4">
+                  {stats.low_stock_products.map((product: any) => (
+                    <div key={product.id} className="flex items-center justify-between pb-3 border-b last:border-b-0">
+                      <div>
+                        <p className="font-semibold text-sm">{product.name}</p>
+                        <p className="text-xs text-red-500">Qoldiq: {product.stock} {product.base_unit}</p>
                       </div>
-                    )
-                  })}
+                      <Badge variant="outline">Min: {product.min_stock}</Badge>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>

@@ -1,15 +1,6 @@
 from django.db import models
 from django.conf import settings
 
-class Branch(models.Model):
-    name = models.CharField(max_length=100)
-    address = models.CharField(max_length=255, blank=True, null=True)
-    phone = models.CharField(max_length=20, blank=True, null=True)
-    is_active = models.BooleanField(default=True)
-
-    def __str__(self):
-        return self.name
-
 class StoreSettings(models.Model):
     name = models.CharField(max_length=255, default="Stroy Material Dukoni")
     address = models.CharField(max_length=255, blank=True, null=True)
@@ -23,13 +14,12 @@ class StoreSettings(models.Model):
 class Employee(models.Model):
     ROLE_CHOICES = [
         ('super_admin', 'Super Admin'),
-        ('branch_admin', 'Filial Admini'),
+        ('branch_admin', 'Dukon Admini'),
         ('seller', 'Sotuvchi'),
         ('warehouse_keeper', 'Omborchi'),
     ]
 
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='employee_profile')
-    branch = models.ForeignKey(Branch, on_delete=models.SET_NULL, null=True, related_name='employees')
     position = models.CharField(max_length=100)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='seller')
     phone = models.CharField(max_length=20, blank=True, null=True)
@@ -55,7 +45,6 @@ class AuditLog(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     action_type = models.CharField(max_length=20, choices=ACTION_CHOICES)
     description = models.TextField()
-    branch = models.ForeignKey(Branch, on_delete=models.SET_NULL, null=True)
     timestamp = models.DateTimeField(auto_now_add=True)
     metadata = models.JSONField(null=True, blank=True) # For storing old/new values
 

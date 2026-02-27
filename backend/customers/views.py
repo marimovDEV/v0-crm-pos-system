@@ -8,6 +8,14 @@ class CustomerViewSet(viewsets.ModelViewSet):
     queryset = Customer.objects.all()
     serializer_class = CustomerSerializer
     search_fields = ['name', 'phone']
+    filterset_fields = ['status', 'customer_type']
+
+    def get_queryset(self):
+        qs = Customer.objects.all().order_by('-created_at')
+        debt_gt = self.request.query_params.get('debt__gt')
+        if debt_gt is not None:
+            qs = qs.filter(debt__gt=debt_gt)
+        return qs
 
     @action(detail=True, methods=['get'])
     def transactions(self, request, pk=None):

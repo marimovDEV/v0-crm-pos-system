@@ -8,7 +8,7 @@ export function usePOS() {
   const [cartItems, setCartItems] = useState<Map<string, CartItem>>(new Map())
   const [discountAmount, setDiscountAmount] = useState(0)
   const [discountPercent, setDiscountPercent] = useState(0)
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "transfer" | "debt">("cash")
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "debt">("cash")
 
   // Mahsulotni sahuga qo'shish
   const addToCart = useCallback((product: Product, quantity = 1) => {
@@ -18,15 +18,36 @@ export function usePOS() {
 
       if (existing) {
         const newQty = existing.quantity + quantity
-        if (newQty <= product.currentStock) {
+        if (newQty <= 0) {
+          newCart.delete(product.id)
+        } else if (newQty <= product.currentStock) {
           newCart.set(product.id, { ...existing, quantity: newQty })
         }
       } else {
-        if (quantity <= product.currentStock) {
+        if (quantity > 0 && quantity <= product.currentStock) {
           newCart.set(product.id, { productId: product.id, quantity, discount: 0 })
         }
       }
 
+      return newCart
+    })
+  }, [])
+
+  // Sonni aniq o'rnatish (qo'lda yozish uchun)
+  const setQuantity = useCallback((product: Product, qty: number) => {
+    setCartItems((prev) => {
+      const newCart = new Map(prev)
+      const safeQty = Math.max(0, Math.min(qty, product.currentStock))
+      if (safeQty <= 0) {
+        newCart.delete(product.id)
+      } else {
+        const existing = newCart.get(product.id)
+        if (existing) {
+          newCart.set(product.id, { ...existing, quantity: safeQty })
+        } else {
+          newCart.set(product.id, { productId: product.id, quantity: safeQty, discount: 0 })
+        }
+      }
       return newCart
     })
   }, [])
@@ -76,9 +97,9 @@ export function usePOS() {
     setDiscountPercent(0)
   }, [])
 
-  // Savdoni yakunlash
-  const completeSale = useCallback(
-    async (products: Product[], userId: string, customerId?: string, debtAmount?: number, branchId?: string) => {
+  // Buyurtma yaratish (Pending)
+  const createOrder = useCallback(
+    async (products: Product[], userId: string, customerId?: string) => {
       if (cartItems.size === 0) return null
 
       const cartArray = Array.from(cartItems.values())
@@ -86,10 +107,9 @@ export function usePOS() {
 
       const saleData = {
         customer: customerId || null,
-        branch: branchId || null, // Added branch
         total_amount: totals.total,
-        discount_amount: totals.discountAmount, // Added field
-        payment_method: paymentMethod,
+        discount_amount: totals.discountAmount,
+        payment_method: paymentMethod, // Will be 'cash' by default for pending
         items: cartArray.map(item => {
           const product = products.find(p => p.id === item.productId)
           const price = product?.sellPrice || 0
@@ -97,33 +117,55 @@ export function usePOS() {
             product: item.productId,
             quantity: item.quantity,
             price: price,
-            total: price * item.quantity // Required by serializer
+            total: price * item.quantity
           }
         }),
       }
 
       try {
         const response = await api.post('/sales/', saleData);
-
-        // Sahu tozalash
         clearCart()
-
         return response.data;
       } catch (error) {
-        console.error("Sale failed:", error)
+        console.error("Order creation failed:", error)
         throw error;
       }
     },
-    [cartItems, discountAmount, discountPercent, paymentMethod, calculateTotal, clearCart],
+    [cartItems, paymentMethod, calculateTotal, clearCart],
   )
+
+  // To'lovni tasdiqlash
+  const confirmPayment = useCallback(async (saleId: string, method: string) => {
+    try {
+      const response = await api.post(`/sales/${saleId}/confirm-payment/`, { payment_method: method });
+      return response.data;
+    } catch (error) {
+      console.error("Payment confirmation failed:", error)
+      throw error;
+    }
+  }, [])
+
+  // Buyurtmani bekor qilish
+  const cancelOrder = useCallback(async (saleId: string) => {
+    try {
+      const response = await api.post(`/sales/${saleId}/cancel-order/`);
+      return response.data;
+    } catch (error) {
+      console.error("Order cancellation failed:", error)
+      throw error;
+    }
+  }, [])
 
   return {
     cartItems: Array.from(cartItems.values()),
     addToCart,
+    setQuantity,
     removeFromCart,
     clearCart,
     calculateTotal,
-    completeSale,
+    createOrder,
+    confirmPayment,
+    cancelOrder,
     setDiscountAmount,
     setDiscountPercent,
     discountAmount,

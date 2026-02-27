@@ -27,7 +27,6 @@ class DebtTransactionSerializer(serializers.ModelSerializer):
 
 class CustomerSerializer(serializers.ModelSerializer):
     transactions = DebtTransactionSerializer(many=True, read_only=True)
-    branch_name = serializers.ReadOnlyField(source='branch.name')
 
     class Meta:
         model = Customer

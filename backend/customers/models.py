@@ -32,7 +32,6 @@ class Customer(models.Model):
     credit_limit = models.DecimalField(max_digits=15, decimal_places=2, default=0)  # Kept for backward compatibility
     
     # Status and tracking
-    branch = models.ForeignKey('core.Branch', on_delete=models.CASCADE, related_name='customers')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
     notes = models.TextField(blank=True, null=True)
     

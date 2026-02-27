@@ -14,11 +14,18 @@ class Sale(models.Model):
         ('truck_sale', 'Mashina sotuvi'),
     ]
 
+    STATUS_CHOICES = [
+        ('pending', 'Kutilmoqda'),
+        ('completed', 'Yakunlandi'),
+        ('cancelled', 'Bekor qilindi'),
+    ]
+
     receipt_id = models.CharField(max_length=50, unique=True, null=True) # E.g., SALE-2025-001
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     customer = models.ForeignKey(Customer, on_delete=models.SET_NULL, null=True, blank=True, related_name='purchases')
     total_amount = models.DecimalField(max_digits=15, decimal_places=2)
     discount_amount = models.DecimalField(max_digits=15, decimal_places=2, default=0)
-    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES)
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, default='cash')
     
     # Debt sale specific
     is_debt_sale = models.BooleanField(default=False)
@@ -29,10 +36,9 @@ class Sale(models.Model):
                                              help_text="F8, F9, etc.")
     scanner_used = models.BooleanField(default=False)
     
-    branch = models.ForeignKey('core.Branch', on_delete=models.CASCADE, related_name='sales')
-    
-    # Ideally link to User model
-    cashier = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    # Staff involvement
+    seller = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='sales_created')
+    cashier = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='sales_confirmed')
     
     created_at = models.DateTimeField(null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -42,19 +48,20 @@ class Sale(models.Model):
             from django.utils import timezone
             self.created_at = timezone.now()
         
-        if not self.receipt_id:
-            # Simple unique receipt ID generation
-            prefix = "SALE"
-            timestamp = self.created_at.strftime("%Y%m%d%H%M%S")
-            random_str = str(random.randint(100, 999))
-            self.receipt_id = f"{prefix}-{timestamp}-{random_str}"
-        
         # Auto-set debt sale flag
         if self.payment_method == 'debt':
             self.is_debt_sale = True
             self.debt_signature_required = True
             
-        super().save(*args, **kwargs)
+        is_new = self.id is None
+        if is_new:
+            # First save to get the ID
+            super().save(*args, **kwargs)
+            # Then set receipt_id to the ID
+            self.receipt_id = str(self.id)
+            type(self).objects.filter(pk=self.pk).update(receipt_id=self.receipt_id)
+        else:
+            super().save(*args, **kwargs)
 
     def __str__(self):
         return f"Sale {self.id} - {self.total_amount}"

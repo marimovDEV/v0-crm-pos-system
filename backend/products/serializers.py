@@ -20,7 +20,6 @@ class BarcodeSerializer(serializers.ModelSerializer):
         return None
 
 class ProductSerializer(serializers.ModelSerializer):
-    branch_name = serializers.ReadOnlyField(source='branch.name')
     stock_display = serializers.SerializerMethodField()
     is_low_stock = serializers.ReadOnlyField()
     barcodes = BarcodeSerializer(many=True, read_only=True)
@@ -45,7 +44,6 @@ class ProductSerializer(serializers.ModelSerializer):
 
 class StockMovementSerializer(serializers.ModelSerializer):
     product_name = serializers.ReadOnlyField(source='product.name')
-    branch_name = serializers.ReadOnlyField(source='branch.name')
     
     class Meta:
         model = StockMovement

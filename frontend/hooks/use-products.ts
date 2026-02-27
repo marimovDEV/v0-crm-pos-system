@@ -11,7 +11,7 @@ export function useProducts() {
   const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await api.get('/products/');
+      const response = await api.get('products/');
 
       // Map Django snake_case to frontend camelCase
       // Django model: cost_price, sale_price, min_stock, stock
@@ -26,7 +26,6 @@ export function useProducts() {
         sellPrice: Number(p.sale_price),
         minStock: Number(p.min_stock),
         currentStock: Number(p.stock),
-        supplier: "Unknown", // Backend might not send supplier name directly in product list
         createdAt: p.created_at,
       }));
 
@@ -44,7 +43,7 @@ export function useProducts() {
 
   const deleteProduct = useCallback(async (id: string) => {
     try {
-      await api.delete(`/products/${id}/`);
+      await api.delete(`products/${id}/`);
       setProducts(prev => prev.filter(p => p.id !== id));
     } catch (error) {
       console.error("Failed to delete product:", error);
@@ -63,9 +62,8 @@ export function useProducts() {
         sell_unit: productData.unit,
         base_unit: productData.unit, // Default to same for now
         unit_ratio: 1,
-        branch: 1 // Default branch ID, or fetch from user context later
       };
-      const response = await api.post('/products/', payload);
+      const response = await api.post('products/', payload);
       setProducts(prev => [response.data].concat(prev));
       return response.data;
     } catch (error) {
@@ -74,26 +72,29 @@ export function useProducts() {
     }
   }, []);
 
-  const updateProduct = useCallback(async (product: Product) => {
+  const updateProduct = useCallback(async (id: string, partialData: Partial<Product>) => {
     try {
       // Map frontend camelCase back to snake_case for Django
-      const payload = {
-        name: product.name,
-        category: product.category,
-        sale_price: product.sellPrice,
-        cost_price: product.buyPrice,
-        min_stock: product.minStock,
-        stock: product.currentStock,
-        sell_unit: product.unit
-      };
+      const payload: any = {};
+      if (partialData.name !== undefined) payload.name = partialData.name;
+      if (partialData.category !== undefined) payload.category = partialData.category;
+      if (partialData.sellPrice !== undefined) payload.sale_price = partialData.sellPrice;
+      if (partialData.buyPrice !== undefined) payload.cost_price = partialData.buyPrice;
+      if (partialData.minStock !== undefined) payload.min_stock = partialData.minStock;
+      if (partialData.currentStock !== undefined) payload.stock = partialData.currentStock;
+      if (partialData.unit !== undefined) payload.sell_unit = partialData.unit;
 
-      await api.patch(`/products/${product.id}/`, payload);
+      await api.patch(`products/${id}/`, payload);
 
-      // Update local state optimistic or fetch fresh
-      setProducts(prev => prev.map(p => p.id === product.id ? product : p));
+      // Update local state
+      setProducts(prev => prev.map(p => {
+        if (p.id === id) {
+          return { ...p, ...partialData };
+        }
+        return p;
+      }));
     } catch (error) {
       console.error("Failed to update product:", error);
-      // Revert or show error
     }
   }, [])
 
@@ -109,25 +110,51 @@ export function useProducts() {
 
   const fetchStats = useCallback(async () => {
     try {
-      const response = await api.get('/products/stats/')
+      const response = await api.get('products/stats/')
       setStats(response.data)
     } catch (e) {
       console.error("Failed to fetch stats", e)
     }
   }, [])
 
+  // Category Management
+  const [categories, setCategories] = useState<{ id: number; name: string }[]>([])
+  const fetchCategories = useCallback(async () => {
+    try {
+      const response = await api.get('categories/')
+      setCategories(response.data.results || response.data)
+    } catch (e) {
+      console.error("Failed to fetch categories", e)
+    }
+  }, [])
+
+  const addCategory = useCallback(async (name: string) => {
+    try {
+      const response = await api.post('categories/', { name })
+      setCategories(prev => [...prev, response.data])
+      return response.data
+    } catch (e) {
+      console.error("Failed to add category", e)
+      throw e
+    }
+  }, [])
+
   useEffect(() => {
-    fetchStats()
-  }, [fetchStats])
+    fetchProducts();
+    fetchStats();
+    fetchCategories();
+  }, [fetchProducts, fetchStats, fetchCategories]);
 
   return {
     products,
     loading,
-    stats, // Return stats
+    stats,
+    categories,
+    addCategory,
     addProduct,
     updateProduct,
     deleteProduct,
     getProductByBarcode,
-    refreshProducts: () => { fetchProducts(); fetchStats(); }
+    refreshProducts: () => { fetchProducts(); fetchStats(); fetchCategories(); }
   }
 }

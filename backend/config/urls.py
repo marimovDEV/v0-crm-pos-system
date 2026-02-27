@@ -7,8 +7,9 @@ from products.barcode_views import barcode_lookup, add_barcode, delete_barcode, 
 from products.calculator_views import calculate_material, calculate_coverage
 from customers.views import CustomerViewSet, DebtTransactionViewSet
 from sales.views import SaleViewSet, SaleItemViewSet, DashboardStatsView, ReportsView, AuditLogView
-from core.views import EmployeeViewSet, BranchViewSet, dashboard_stats, sales_report, user_profile, pin_login
+from core.views import EmployeeViewSet, dashboard_stats, sales_report, user_profile, pin_login
 from core.reports_views import daily_sales_report, customer_debt_report, low_stock_report
+from core.print_views import add_print_job, poll_print_jobs, ack_print_job
 
 router = DefaultRouter()
 router.register(r'products', ProductViewSet)
@@ -19,7 +20,6 @@ router.register(r'debt-transactions', DebtTransactionViewSet)
 router.register(r'sales', SaleViewSet)
 router.register(r'sale-items', SaleItemViewSet)
 router.register(r'employees', EmployeeViewSet)
-router.register(r'branches', BranchViewSet)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -51,4 +51,9 @@ urlpatterns = [
     path('api/reports/daily-sales/', daily_sales_report, name='reports-daily-sales'),
     path('api/reports/customer-debt/', customer_debt_report, name='reports-customer-debt'),
     path('api/reports/low-stock/', low_stock_report, name='reports-low-stock'),
+    
+    # Print Queue (Printer Agent uchun)
+    path('api/print/', add_print_job, name='print-add'),
+    path('api/print/poll/', poll_print_jobs, name='print-poll'),
+    path('api/print/ack/<str:job_id>/', ack_print_job, name='print-ack'),
 ]

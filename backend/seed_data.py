@@ -12,11 +12,11 @@ from django.contrib.auth.models import User
 from products.models import Product, StockMovement, Barcode
 from customers.models import Customer, DebtTransaction
 from sales.models import Sale, SaleItem
-from core.models import Employee, Branch, StoreSettings
+from core.models import Employee, StoreSettings
 from django.utils import timezone
 
 def seed_data():
-    print("Starting mature data seeding with Branch models and Barcodes...")
+    print("Starting mature data seeding for single store setup...")
 
     # 1. Clear existing data
     SaleItem.objects.all().delete()
@@ -27,7 +27,6 @@ def seed_data():
     Customer.objects.all().delete()
     Barcode.objects.all().delete()
     Product.objects.all().delete()
-    Branch.objects.all().delete()
     StoreSettings.objects.all().delete()
 
     # Create Store Settings
@@ -38,23 +37,19 @@ def seed_data():
         receipt_footer="Xaridingiz uchun rahmat!"
     )
 
-    # Create Branches
-    br1 = Branch.objects.create(name="Urganch 1", address="Urganch shahar, Markaziy dehqon bozori", phone="+998901112233")
-    br2 = Branch.objects.create(name="Urganch 2", address="Urganch shahar, Sanoatchilar ko'chasi", phone="+998912223344")
-    branches = [br1, br2]
-
     # Create Users & Employees
-    if not User.objects.filter(username='admin').exists():
-        admin_user = User.objects.create_superuser('admin', 'admin@example.com', 'admin123')
-    else:
-        admin_user = User.objects.get(username='admin')
+    admin_user, _ = User.objects.get_or_create(username='admin', defaults={'is_superuser': True, 'is_staff': True})
+    if _:
+        admin_user.set_password('admin123')
+        admin_user.save()
     
-    Employee.objects.get_or_create(user=admin_user, defaults={'position': 'CEO', 'branch': br1, 'salary': 10000000, 'role': 'super_admin', 'pin': '1234'})
+    Employee.objects.update_or_create(
+        user=admin_user, 
+        defaults={'position': 'CEO', 'salary': 10000000, 'role': 'super_admin', 'pin': '1234'}
+    )
     
     manager_configs = [
-        {'username': 'ali_urganch1', 'branch': br1, 'pos': 'Menejer', 'salary': 5000000, 'role': 'branch_admin', 'pin': '9999'},
-        {'username': 'bobur_urganch2', 'branch': br2, 'pos': 'Menejer', 'salary': 5200000, 'role': 'branch_admin', 'pin': '8888'},
-        {'username': 'oybek_kassir', 'branch': br1, 'pos': 'Sotuvchi', 'salary': 3500000, 'role': 'seller', 'pin': '5678'},
+        {'username': 'oybek_sotuvchi', 'pos': 'Sotuvchi/Menejer', 'salary': 5000000, 'role': 'seller', 'pin': '5678'},
     ]
     
     for conf in manager_configs:
@@ -69,7 +64,6 @@ def seed_data():
         Employee.objects.update_or_create(
             user=user,
             defaults={
-                'branch': conf['branch'],
                 'position': conf['pos'],
                 'salary': conf['salary'],
                 'role': conf['role'],
@@ -78,17 +72,17 @@ def seed_data():
             }
         )
 
-    # 2. Products with new multi-unit system
+    # 2. Products
     products_base = [
         {
             'name': 'Sement M-450', 
             'category': 'Sement', 
             'base_unit': 'kg', 
             'sell_unit': 'qop',
-            'unit_ratio': 50,  # 1 qop = 50 kg
-            'cost': 12400,  # per qop
+            'unit_ratio': 50,
+            'cost': 12400,
             'sale': 15000, 
-            'stock_init': 5000,  # 5000 kg = 100 qop
+            'stock_init': 5000, 
             'min': 500,
             'short_code': 'C450'
         },
@@ -133,179 +127,92 @@ def seed_data():
             'category': 'Chimdan', 
             'base_unit': 'kg', 
             'sell_unit': 'qop',
-            'unit_ratio': 25,  # 1 qop = 25 kg
+            'unit_ratio': 25,
             'cost': 32000, 
             'sale': 45000, 
-            'stock_init': 1250,  # 1250 kg = 50 qop
+            'stock_init': 1250, 
             'min': 250,
             'short_code': 'KNF'
         },
-        {
-            'name': 'Shifer 8 tolqinli', 
-            'category': 'Tom qoplama', 
-            'base_unit': 'dona', 
-            'sell_unit': 'dona',
-            'unit_ratio': 1,
-            'cost': 28000, 
-            'sale': 35000, 
-            'stock_init': 2000,
-            'min': 100,
-            'short_code': 'SH8'
-        },
     ]
 
-    for br in branches:
-        for idx, p_data in enumerate(products_base, 1):
-            # Make short_code branch-specific
-            branch_prefix = f"U{br.id}-"
-            product_short_code = f"{branch_prefix}{p_data['short_code']}"
-            
-            product = Product.objects.create(
-                name=p_data['name'],
-                category=p_data['category'],
-                base_unit=p_data['base_unit'],
-                sell_unit=p_data['sell_unit'],
-                unit_ratio=p_data['unit_ratio'],
-                short_code=product_short_code,
-                cost_price=p_data['cost'],
-                sale_price=p_data['sale'],
-                stock=p_data['stock_init'],
-                min_stock=p_data['min'],
-                branch=br
-            )
-            
-            # Create multiple barcodes for each product
-            barcode_num = f"{br.id:02d}{idx:03d}"
-            
-            # Factory barcode (EAN-13 style)
-            Barcode.objects.create(
-                product=product,
-                code=f"590{barcode_num}0001",
-                barcode_type='factory',
-                created_by=admin_user
-            )
-            
-            # Package barcode
-            Barcode.objects.create(
-                product=product,
-                code=f"PKG{barcode_num}",
-                barcode_type='package',
-                created_by=admin_user
-            )
-            
-            # Internal barcode (short) - also make branch-specific
-            Barcode.objects.create(
-                product=product,
-                code=product_short_code,
-                barcode_type='internal',
-                created_by=admin_user
-            )
-            
-            # Stock movement
-            StockMovement.objects.create(
-                product=product,
-                type='in',
-                quantity=p_data['stock_init'],
-                user=admin_user,
-                branch=br,
-                reason="Dastlabki ombor toldirish",
-                date=timezone.now() - timedelta(days=90)
-            )
-            
-            print(f"✓ Created {product.name} with 3 barcodes")
+    for idx, p_data in enumerate(products_base, 1):
+        product = Product.objects.create(
+            name=p_data['name'],
+            category=p_data['category'],
+            base_unit=p_data['base_unit'],
+            sell_unit=p_data['sell_unit'],
+            unit_ratio=p_data['unit_ratio'],
+            short_code=p_data['short_code'],
+            cost_price=p_data['cost'],
+            sale_price=p_data['sale'],
+            stock=p_data['stock_init'],
+            min_stock=p_data['min']
+        )
+        
+        # Barcodes
+        Barcode.objects.create(product=product, code=f"590{idx:05d}0001", barcode_type='factory', created_by=admin_user)
+        Barcode.objects.create(product=product, code=p_data['short_code'], barcode_type='internal', created_by=admin_user)
+        
+        # Stock movement
+        StockMovement.objects.create(
+            product=product,
+            type='in',
+            quantity=p_data['stock_init'],
+            user=admin_user,
+            reason="Dastlabki ombor toldirish",
+            date=timezone.now() - timedelta(days=90)
+        )
 
-    # 3. Customers with types and debt limits
+    # 3. Customers
     customers_data = [
-        {
-            'name': 'Shovot Qurilish MCHJ', 
-            'phone': '+998901112233', 
-            'branch': br1,
-            'customer_type': 'firma',
-            'debt_limit': 50000000  # 50 million
-        },
-        {
-            'name': 'Karimov Usta', 
-            'phone': '+998912223344', 
-            'branch': br2,
-            'customer_type': 'usta',
-            'debt_limit': 5000000  # 5 million
-        },
-        {
-            'name': 'Rahimov Brigadir', 
-            'phone': '+998933334455', 
-            'branch': br1,
-            'customer_type': 'brigadir',
-            'debt_limit': 15000000  # 15 million
-        },
-        {
-            'name': 'Alijon (oddiy mijoz)', 
-            'phone': '+998944445566', 
-            'branch': br1,
-            'customer_type': 'regular',
-            'debt_limit': 0  # cash only
-        },
+        {'name': 'Shovot Qurilish MCHJ', 'phone': '+998901112233', 'customer_type': 'firma', 'debt_limit': 50000000},
+        {'name': 'Karimov Usta', 'phone': '+998912223344', 'customer_type': 'usta', 'debt_limit': 5000000},
+        {'name': 'Rahimov Brigadir', 'phone': '+998933334455', 'customer_type': 'brigadir', 'debt_limit': 15000000},
     ]
 
     for c_data in customers_data:
         Customer.objects.create(
             name=c_data['name'],
             phone=c_data['phone'],
-            branch=c_data['branch'],
             customer_type=c_data['customer_type'],
             debt_limit=c_data['debt_limit'],
             debt=0,
             status='active'
         )
-    
-    print(f"✓ Created {len(customers_data)} customers with different types")
 
     # 4. Sales
     clients = list(Customer.objects.all())
+    products = list(Product.objects.all())
     payment_methods = ['cash', 'card', 'transfer', 'debt']
     start_date = timezone.now() - timedelta(days=90)
     
-    for i in range(100):
+    for i in range(50):
         days_offset = random.randint(0, 90)
         sale_date = start_date + timedelta(days=days_offset)
-        
         client = random.choice(clients)
-        branch = client.branch
-        branch_products = list(Product.objects.filter(branch=branch))
         
-        if not branch_products: continue
-        
-        # Create Sale
         sale = Sale.objects.create(
             customer=client,
             total_amount=0,
             payment_method=random.choice(payment_methods),
-            branch=branch,
             cashier=admin_user,
             created_at=sale_date
         )
         
         total_amount = 0
-        selected_items = random.sample(branch_products, k=random.randint(1, 3))
+        selected_items = random.sample(products, k=random.randint(1, 3))
         for p in selected_items:
             qty = random.randint(1, 10)
             line_total = p.sale_price * qty
             total_amount += line_total
             
             SaleItem.objects.create(
-                sale=sale,
-                product=p,
-                quantity=qty,
-                price=p.sale_price,
-                cost_price_at_sale=p.cost_price,
-                total=line_total
+                sale=sale, product=p, quantity=qty, price=p.sale_price,
+                cost_price_at_sale=p.cost_price, total=line_total
             )
             StockMovement.objects.create(
-                product=p,
-                type='out',
-                quantity=qty,
-                branch=branch,
-                reason=f"Sotuv #{sale.id}",
-                date=sale_date
+                product=p, type='out', quantity=qty, reason=f"Sotuv #{sale.id}", date=sale_date
             )
             p.stock -= qty
             p.save()
@@ -317,13 +224,10 @@ def seed_data():
             client.debt += total_amount
             client.save()
             DebtTransaction.objects.create(
-                customer=client,
-                transaction_type='debt_added',
-                amount=total_amount,
-                date=sale_date
+                customer=client, transaction_type='debt_added', amount=total_amount, date=sale_date
             )
 
-    print("Seeding completed successfully with Branch models.")
+    print("Seeding completed successfully for single store setup.")
 
 if __name__ == '__main__':
     seed_data()

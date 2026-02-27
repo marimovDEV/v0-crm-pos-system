@@ -9,7 +9,6 @@ export interface Product {
   sellPrice: number
   minStock: number
   currentStock: number
-  supplier: string
   createdAt: string
 }
 
@@ -18,7 +17,9 @@ export interface User {
   id: string
   pin: string
   name: string
-  role: "super-admin" | "admin" | "kassir" | "omborchi"
+  full_name?: string
+  username?: string
+  role: "super-admin" | "admin" | "kassir" | "omborchi" | "sotuvchi" | "seller"
   avatar?: string
   createdAt: string
 }
@@ -32,15 +33,18 @@ export interface CartItem {
 
 export interface Sale {
   id: string
+  receipt_id: string
   date: string
-  items: CartItem[]
-  totalAmount: number
-  discountAmount: number
-  paidAmount: number
-  paymentMethod: "cash" | "card" | "transfer" | "debt"
-  userId: string
-  debtAmount: number
-  customerId?: string
+  status: "pending" | "completed" | "cancelled"
+  items: any[]
+  total_amount: number
+  discount_amount: number
+  payment_method: "cash" | "card" | "transfer" | "debt"
+  seller_name?: string
+  cashier_name?: string
+  customer_name?: string
+  subtotal?: number
+  created_at: string
 }
 
 // Qarzdorlik modeli

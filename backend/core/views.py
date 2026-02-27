@@ -4,19 +4,14 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.db.models import Sum, F
 from django.utils import timezone
-from .models import Employee, Branch
-from .serializers import EmployeeSerializer, BranchSerializer
+from .models import Employee
+from .serializers import EmployeeSerializer
 
 class EmployeeViewSet(viewsets.ModelViewSet):
     queryset = Employee.objects.all()
     serializer_class = EmployeeSerializer
     search_fields = ['user__username', 'position']
-    filterset_fields = ['branch', 'role']
-
-class BranchViewSet(viewsets.ModelViewSet):
-    queryset = Branch.objects.all()
-    serializer_class = BranchSerializer
-    search_fields = ['name']
+    filterset_fields = ['role']
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -29,20 +24,10 @@ def dashboard_stats(request):
     today = timezone.now().date()
     start_of_today = timezone.make_aware(timezone.datetime.combine(today, timezone.datetime.min.time()))
     
-    # Filter by user branch
-    user = request.user
+    # No branch filtering
     sales_qs = Sale.objects.all()
     products_qs = Product.objects.all()
-    customers_qs = Customer.objects.all() # Assuming customers can be global or branch-specific? Let's assume global for now or filter if needed.
-
-    try:
-        employee = user.employee_profile
-        if employee.role != 'super_admin' and employee.branch:
-            sales_qs = sales_qs.filter(branch=employee.branch)
-            products_qs = products_qs.filter(branch=employee.branch)
-            # customers_qs = customers_qs.filter(branch=employee.branch) # If customers are per branch
-    except:
-        pass
+    customers_qs = Customer.objects.all()
 
     today_sales = sales_qs.filter(created_at__gte=start_of_today)
     today_total = today_sales.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
@@ -76,27 +61,24 @@ def sales_report(request):
 def user_profile(request):
     """Get current user's profile information"""
     user = request.user
-    employee = None
-    
+    role = 'super-admin'
     try:
-        employee = Employee.objects.select_related('branch').get(user=user)
-    except Employee.DoesNotExist:
+        employee = user.employee_profile
+        ROLE_MAPPING = {
+            'super_admin': 'super-admin',
+            'branch_admin': 'admin',
+            'seller': 'seller',
+            'warehouse_keeper': 'omborchi'
+        }
+        role = ROLE_MAPPING.get(employee.role, 'super-admin')
+    except:
         pass
-        
-    ROLE_MAPPING = {
-        'super_admin': 'super-admin',
-        'branch_admin': 'admin',
-        'seller': 'kassir',
-        'warehouse_keeper': 'omborchi'
-    }
-    
-    role = ROLE_MAPPING.get(employee.role, 'super-admin') if employee else 'super-admin'
     
     return Response({
         'username': user.username,
         'full_name': f"{user.first_name} {user.last_name}".strip() or user.username,
         'role': role,
-        'branch_name': employee.branch.name if employee and employee.branch else 'Barcha filial'
+        'branch_name': 'Asosiy do\'kon'
     })
 
 from rest_framework.authtoken.models import Token
@@ -115,7 +97,7 @@ def pin_login(request):
     ROLE_MAPPING = {
         'super_admin': 'super-admin',
         'branch_admin': 'admin',
-        'seller': 'kassir',
+        'seller': 'seller',
         'warehouse_keeper': 'omborchi'
     }
 

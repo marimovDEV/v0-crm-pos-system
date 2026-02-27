@@ -12,7 +12,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
     search_fields = ['name', 'sku']
-    filterset_fields = ['category', 'branch']
+    filterset_fields = ['category']
 
     @action(detail=False, methods=['get'])
     def stats(self, request):
@@ -42,51 +42,36 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        queryset = Product.objects.all()
-        
         if not user.is_authenticated:
-            return queryset.none()
-            
-        try:
-            employee = user.employee_profile
-            # Super admin sees all, others see only their branch
-            if employee.role != 'super_admin' and employee.branch:
-                queryset = queryset.filter(branch=employee.branch)
-        except:
-            # If no employee profile (e.g. admin superuser), show all
-            pass
-            
-        return queryset
+            return Product.objects.none()
+        return Product.objects.all()
 
     def perform_create(self, serializer):
-        # Auto-assign branch if not provided and user is not super_admin
-        user = self.request.user
-        try:
-            employee = user.employee_profile
-            if employee.role != 'super_admin' and employee.branch:
-                serializer.save(branch=employee.branch)
-            else:
-                serializer.save()
-        except:
-            serializer.save()
+        serializer.save()
+
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        old_stock = instance.stock
+        new_product = serializer.save()
+        new_stock = new_product.stock
+
+        if old_stock != new_stock:
+            diff = new_stock - old_stock
+            StockMovement.objects.create(
+                product=new_product,
+                type='in' if diff > 0 else 'out',
+                quantity=diff,
+                user=self.request.user,
+                reason=f"Stock updated manually via Inventory/Product UI (Old: {old_stock}, New: {new_stock})"
+            )
 
 class StockMovementViewSet(viewsets.ModelViewSet):
     queryset = StockMovement.objects.all()
     serializer_class = StockMovementSerializer
-    filterset_fields = ['type', 'branch', 'product']
+    filterset_fields = ['type', 'product']
 
     def get_queryset(self):
         user = self.request.user
-        queryset = StockMovement.objects.all().order_by('-date')
-        
         if not user.is_authenticated:
-            return queryset.none()
-
-        try:
-            employee = user.employee_profile
-            if employee.role != 'super_admin' and employee.branch:
-                queryset = queryset.filter(branch=employee.branch)
-        except:
-            pass
-            
-        return queryset
+            return StockMovement.objects.none()
+        return StockMovement.objects.all().order_by('-date')

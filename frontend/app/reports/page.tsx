@@ -22,274 +22,256 @@ import {
 import { Download, Calendar } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useProducts } from "@/hooks/use-products"
+import { useReports } from "@/hooks/use-reports"
 import { RoleGate } from "@/components/role-gate"
+import { Badge } from "@/components/ui/badge"
 
 export default function ReportsPage() {
   const { user } = useAuth()
-  const { products } = useProducts()
+  const { products, loading: productsLoading } = useProducts()
+  const { reports, loading: reportsLoading, setDateRange } = useReports()
 
-  const stats = useMemo(() => {
-    const totalValue = products.reduce((sum, p) => sum + p.sellPrice * p.currentStock, 0)
-    const totalBuyValue = products.reduce((sum, p) => sum + p.buyPrice * p.currentStock, 0)
-    const potentialProfit = totalValue - totalBuyValue
-
-    const categoryRevenue = new Map<string, number>()
-    products.forEach((p) => {
-      const revenue = p.sellPrice * p.currentStock
-      categoryRevenue.set(p.category, (categoryRevenue.get(p.category) || 0) + revenue)
-    })
-
-    const chartData = Array.from(categoryRevenue.entries()).map(([category, revenue]) => ({
-      category,
-      revenue,
-      orders: Math.floor(revenue / 5000) + 1,
-    }))
-
-    return {
-      totalValue,
-      totalBuyValue,
-      potentialProfit,
-      profitMargin: totalValue > 0 ? ((potentialProfit / totalValue) * 100).toFixed(1) : "0",
-      categoryData: Array.from(categoryRevenue.entries())
-        .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => b.value - a.value),
-      chartData,
-    }
+  const inventoryValue = useMemo(() => {
+    return products.reduce((sum, p) => sum + p.sellPrice * p.currentStock, 0)
   }, [products])
-
-  // Real Sales Data
-  const [salesData, setSalesData] = useState<any[]>([])
-
-  useEffect(() => {
-    const fetchSales = async () => {
-      try {
-        const response = await api.get('/sales/');
-        setSalesData(response.data.results || response.data);
-      } catch (error) {
-        console.error("Failed to fetch sales for reports:", error);
-      }
-    };
-    fetchSales();
-  }, []);
-
-  const salesTrend = useMemo(() => {
-    // Group sales by date for the last 7 days
-    const last7Days = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      return d.toISOString().split('T')[0];
-    }).reverse();
-
-    const statsByDate = new Map<string, { revenue: number, orders: number }>();
-    last7Days.forEach(date => statsByDate.set(date, { revenue: 0, orders: 0 }));
-
-    salesData.forEach((sale: any) => {
-      const date = sale.created_at?.split('T')[0] || sale.date; // Handle both formats if needed
-      if (statsByDate.has(date)) {
-        const current = statsByDate.get(date);
-        if (current) {
-          statsByDate.set(date, {
-            revenue: current.revenue + Number(sale.total_amount),
-            orders: current.orders + 1
-          });
-        }
-      }
-    });
-
-    return last7Days.map(date => ({
-      day: date, // Format as needed, e.g. 'MM-DD'
-      revenue: statsByDate.get(date)?.revenue || 0,
-      orders: statsByDate.get(date)?.orders || 0,
-    }));
-  }, [salesData]);
-
-  // Top mahsulotlar (Real data from product stock value)
-  const topProducts = useMemo(
-    () =>
-      products
-        .sort((a, b) => b.sellPrice * b.currentStock - a.sellPrice * a.currentStock)
-        .slice(0, 5)
-        .map((p) => ({
-          id: p.id,
-          name: p.name,
-          revenue: p.sellPrice * p.currentStock,
-          units: p.currentStock,
-        })),
-    [products],
-  )
 
   const COLORS = ["#475569", "#f59e0b", "#ef4444", "#10b981", "#8b5cf6", "#06b6d4"]
 
+  if (productsLoading || reportsLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="w-12 h-12 mx-auto mb-4 border-4 border-slate-300 border-t-amber-500 rounded-full animate-spin"></div>
+          <p className="text-slate-600">Yuklanyapti...</p>
+        </div>
+      </div>
+    )
+  }
+
+  const data = reports || {
+    overview: {
+      total_sales: 0,
+      sale_count: 0,
+      total_profit: 0,
+      margin: 0,
+      avg_check: 0,
+      total_debt_payments: 0
+    },
+    profitable_products: [],
+    payment_stats: [],
+    debt_payments: [],
+    chart_data: []
+  }
+
+  // Map payment method codes to labels and colors
+  const PAYMENT_LABELS: Record<string, string> = {
+    'cash': 'Naqd',
+    'card': 'Karta',
+    'debt': 'Qarz'
+  }
+  const PAYMENT_COLORS: Record<string, string> = {
+    'cash': '#22c55e', // green
+    'card': '#3b82f6', // blue
+    'debt': '#ef4444'  // red
+  }
+
   return (
     <RoleGate user={user} allowedRoles={["admin", "super-admin"]}>
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-auto bg-slate-50">
         {/* Header */}
-        <div className="bg-gradient-to-r from-slate-600 to-slate-700 text-white p-6 sticky top-0 z-10">
-          <h1 className="text-2xl font-bold mb-1">Hisobotlar va Tahlillar</h1>
-          <p className="text-slate-200 text-sm">Jami biznes tahlili va ma'lumotlari</p>
+        <div className="bg-slate-900 text-white p-6 sticky top-0 z-10 flex justify-between items-center shadow-md">
+          <div>
+            <h1 className="text-2xl font-black mb-1">Biznes Tahlillari</h1>
+            <p className="text-slate-400 text-sm font-medium">Do'koningiz moliyaviy holati va foyda ko'rsatkichlari</p>
+          </div>
+          <div className="flex gap-2">
+            {/* Optional: Add Date picker here later */}
+          </div>
         </div>
 
         <div className="p-6 space-y-6">
-          {/* Header Controls */}
-          <div className="flex items-center justify-between">
-            <div></div>
-            <div className="flex gap-2">
-              <Button variant="outline" className="gap-2 bg-transparent">
-                <Calendar size={18} />
-                Oxirgi 6 oy
-              </Button>
-              <Button className="gap-2 bg-amber-600 hover:bg-amber-700">
-                <Download size={18} />
-                Eksport
-              </Button>
-            </div>
-          </div>
+          {/* 1. Key Metrics Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <Card className="border-none shadow-sm bg-white hover:scale-[1.02] transition-transform">
+              <CardContent className="p-4">
+                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2">Umumiy Savdo</p>
+                <div className="text-2xl font-black text-slate-900">{data.overview.total_sales.toLocaleString()} <span className="text-xs text-slate-400 font-bold">so'm</span></div>
+                <div className="mt-2 flex items-center gap-1">
+                  <Badge variant="secondary" className="bg-slate-100 text-slate-600 border-none font-bold">{data.overview.sale_count} ta chek</Badge>
+                </div>
+              </CardContent>
+            </Card>
 
-          {/* Key Metrics */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Jami Zaxira Qiymati</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.totalValue.toLocaleString()}</div>
-                <p className="text-xs text-slate-600 mt-1">so'm</p>
+            <Card className="border-none shadow-sm bg-white hover:scale-[1.02] transition-transform">
+              <CardContent className="p-4">
+                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2">Sof Foyda</p>
+                <div className="text-2xl font-black text-green-600">{data.overview.total_profit.toLocaleString()} <span className="text-xs text-green-400 font-bold">so'm</span></div>
+                <div className="mt-2 flex items-center gap-1 text-[10px] font-bold text-green-600">
+                  {data.overview.margin}% rentabellik
+                </div>
               </CardContent>
             </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Oldingi Xarajat</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.totalBuyValue.toLocaleString()}</div>
-                <p className="text-xs text-slate-600 mt-1">so'm</p>
+
+            <Card className="border-none shadow-sm bg-white hover:scale-[1.02] transition-transform">
+              <CardContent className="p-4">
+                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2">Qarz To'lovlari</p>
+                <div className="text-2xl font-black text-blue-600">{data.overview.total_debt_payments.toLocaleString()} <span className="text-xs text-blue-400 font-bold">so'm</span></div>
+                <div className="mt-2 text-[10px] font-bold text-blue-400 uppercase">Qaytarilgan qarzlar</div>
               </CardContent>
             </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Potentsial Foyda</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-600">{stats.potentialProfit.toLocaleString()}</div>
-                <p className="text-xs text-green-600 mt-1">{stats.profitMargin}% margin</p>
+
+            <Card className="border-none shadow-sm bg-white hover:scale-[1.02] transition-transform">
+              <CardContent className="p-4">
+                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2">O'rtacha Chek</p>
+                <div className="text-2xl font-black text-amber-600">{data.overview.avg_check.toLocaleString()} <span className="text-xs text-amber-400 font-bold">so'm</span></div>
+                <div className="mt-2 text-[10px] font-bold text-amber-400 uppercase">Har bir savdoga</div>
               </CardContent>
             </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Jami Mahsulotlar</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{products.length}</div>
-                <p className="text-xs text-slate-600 mt-1">aktiv kataloq</p>
+
+            <Card className="border-none shadow-sm bg-white hover:scale-[1.02] transition-transform">
+              <CardContent className="p-4">
+                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2">Zaxira Qiymati</p>
+                <div className="text-2xl font-black text-slate-900">{inventoryValue.toLocaleString()} <span className="text-xs text-slate-400 font-bold">so'm</span></div>
+                <div className="mt-2 text-[10px] font-bold text-slate-400 uppercase">{products.length} turdagi tovar</div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Charts */}
+          {/* 2. Main Charts Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Line Chart */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Savdo Trendi</CardTitle>
+            <Card className="border-none shadow-sm">
+              <CardHeader className="pb-2 border-b mb-4">
+                <CardTitle className="text-base font-black uppercase tracking-widest text-slate-700">Savdo va Foyda Trendi</CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={salesTrend}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="day" />
-                    <YAxis yAxisId="left" />
-                    <YAxis yAxisId="right" orientation="right" />
-                    <Tooltip />
-                    <Legend />
-                    <Line
-                      yAxisId="left"
-                      type="monotone"
-                      dataKey="revenue"
-                      stroke="#475569"
-                      strokeWidth={2}
-                      name="Savdo (so'm)"
-                    />
-                    <Line
-                      yAxisId="right"
-                      type="monotone"
-                      dataKey="orders"
-                      stroke="#f59e0b"
-                      strokeWidth={2}
-                      name="Cheklar"
-                    />
+                  <LineChart data={data.chart_data}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700 }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700 }} />
+                    <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                    <Legend iconType="circle" />
+                    <Line type="monotone" dataKey="sales" stroke="#0f172a" strokeWidth={3} name="Savdo" dot={{ r: 4, fill: '#0f172a' }} activeDot={{ r: 6 }} />
+                    <Line type="monotone" dataKey="profit" stroke="#22c55e" strokeWidth={3} name="Foyda" dot={{ r: 4, fill: '#22c55e' }} activeDot={{ r: 6 }} />
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
 
-            {/* Pie Chart */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Kategoriya Taqsimoti</CardTitle>
+            <Card className="border-none shadow-sm">
+              <CardHeader className="pb-2 border-b mb-4">
+                <CardTitle className="text-base font-black uppercase tracking-widest text-slate-700">To'lov Turlari Taqqoslanishi</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="flex justify-center items-center">
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
                     <Pie
-                      data={stats.categoryData}
+                      data={data.payment_stats}
                       cx="50%"
                       cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
+                      innerRadius={60}
+                      outerRadius={100}
+                      paddingAngle={5}
+                      dataKey="total"
+                      nameKey="payment_method"
                     >
-                      {stats.categoryData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      {data.payment_stats.map((entry: any, index: number) => (
+                        <Cell key={`cell-${index}`} fill={PAYMENT_COLORS[entry.payment_method] || COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip />
+                    <Tooltip
+                      formatter={(value: any, name: any) => [`${Number(value).toLocaleString()} so'm`, PAYMENT_LABELS[name] || name]}
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                    />
+                    <Legend
+                      formatter={(value: any) => PAYMENT_LABELS[value] || value}
+                      verticalAlign="bottom"
+                      align="center"
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
           </div>
 
-          {/* Bar Chart - Category Revenue */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Kategoriya Bo'yicha Daromad</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={stats.categoryData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="value" fill="#475569" name="Daromad (so'm)" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+          {/* 3. Bottom Grid: Top Profitable Products and Debt Payments */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Profitable Products Table */}
+            <Card className="border-none shadow-sm overflow-hidden">
+              <CardHeader className="bg-slate-900 py-4">
+                <CardTitle className="text-white text-sm font-black uppercase tracking-widest">Eng Foydali Mahsulotlar (Foyda bo'yicha)</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="text-[10px] text-slate-400 uppercase bg-slate-50 border-b">
+                      <tr>
+                        <th className="px-6 py-4 font-black">Mahsulot</th>
+                        <th className="px-4 py-4 text-center font-black">Soni</th>
+                        <th className="px-6 py-4 text-right font-black">Sof Foyda</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 bg-white">
+                      {data.profitable_products.map((item: any, idx: number) => (
+                        <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-6 py-4 font-extrabold text-slate-800 uppercase text-[11px]">{item.product__name}</td>
+                          <td className="px-4 py-4 text-center">
+                            <Badge className="bg-slate-100 text-slate-600 border-none font-black text-[10px]">{item.qty} ta</Badge>
+                          </td>
+                          <td className="px-6 py-4 text-right font-black text-green-600">
+                            {Number(item.total_profit).toLocaleString()} <span className="text-[9px] text-slate-400">so'm</span>
+                          </td>
+                        </tr>
+                      ))}
+                      {data.profitable_products.length === 0 && (
+                        <tr><td colSpan={3} className="p-10 text-center text-slate-400 font-bold">Ma'lumot mavjud emas</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
 
-          {/* Top Products */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Eng Yaxshi Mahsulotlar</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {topProducts.map((product) => (
-                  <div key={product.id} className="flex items-center justify-between pb-4 border-b last:border-b-0">
-                    <div className="flex-1">
-                      <p className="font-medium text-sm line-clamp-1">{product.name}</p>
-                      <p className="text-xs text-muted-foreground">{product.units} ta mahsulot</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-sm">{product.revenue.toLocaleString()} so'm</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+            {/* Recent Debt Payments Table */}
+            <Card className="border-none shadow-sm overflow-hidden">
+              <CardHeader className="bg-blue-600 py-4">
+                <CardTitle className="text-white text-sm font-black uppercase tracking-widest">Oxirgi Qarz To'lovlari</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="text-[10px] text-slate-400 uppercase bg-slate-50 border-b">
+                      <tr>
+                        <th className="px-6 py-4 font-black">Mijoz</th>
+                        <th className="px-4 py-4 text-center font-black">Vaqt</th>
+                        <th className="px-6 py-4 text-right font-black">Summa</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 bg-white">
+                      {data.debt_payments.map((payment: any) => (
+                        <tr key={payment.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-6 py-4">
+                            <div className="font-extrabold text-slate-800 uppercase text-[11px]">{payment.customer__name}</div>
+                            {payment.note && <div className="text-[9px] text-slate-400 lowercase">{payment.note}</div>}
+                          </td>
+                          <td className="px-4 py-4 text-center text-[10px] font-bold text-slate-500">
+                            {new Date(payment.date).toLocaleDateString('uz-UZ')}<br />
+                            {new Date(payment.date).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}
+                          </td>
+                          <td className="px-6 py-4 text-right font-black text-blue-600">
+                            {Number(payment.amount).toLocaleString()} <span className="text-[9px] text-slate-400">so'm</span>
+                          </td>
+                        </tr>
+                      ))}
+                      {data.debt_payments.length === 0 && (
+                        <tr><td colSpan={3} className="p-10 text-center text-slate-400 font-bold">Qarz to'lovlari mavjud emas</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </main>
     </RoleGate>

@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
-import { LayoutDashboard, ShoppingCart, Package, Settings, LogOut, Building2, Warehouse, BookOpen, BarChart3 } from "lucide-react"
+import { LayoutDashboard, ShoppingCart, Package, Settings, LogOut, Warehouse, BookOpen, BarChart3, Banknote } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"
@@ -10,13 +10,13 @@ import { RoleGate } from "@/components/role-gate"
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Bosh panel", icon: LayoutDashboard, roles: ["admin", "super-admin"] },
-  { href: "/pos", label: "Savdo (POS)", icon: ShoppingCart, roles: ["kassir", "admin", "super-admin"] },
-  { href: "/inventory", label: "Ombor", icon: Warehouse, roles: ["omborchi", "admin", "super-admin"] },
-  { href: "/products", label: "Mahsulotlar", icon: Package, roles: ["admin", "omborchi", "super-admin"] },
-  { href: "/debts", label: "Qarzdorlik", icon: BookOpen, roles: ["admin", "super-admin"] },
+  { href: "/pos", label: "Savdo (POS)", icon: ShoppingCart, roles: ["seller", "kassir", "admin", "super-admin"] },
+  { href: "/kassa", label: "Kassa", icon: Banknote, roles: ["admin", "super-admin"] },
+  { href: "/inventory", label: "Ombor", icon: Warehouse, roles: ["kassir", "admin", "super-admin"] },
+  { href: "/products", label: "Mahsulotlar", icon: Package, roles: ["seller", "kassir", "admin", "super-admin"] },
+  { href: "/debts", label: "Qarzdorlik", icon: BookOpen, roles: ["seller", "kassir", "admin", "super-admin"] },
   { href: "/reports", label: "Hisobotlar", icon: BarChart3, roles: ["admin", "super-admin"] },
   { href: "/settings", label: "Sozlamalar", icon: Settings, roles: ["admin", "super-admin"] },
-  { href: "/branches", label: "Filiallar", icon: Building2, roles: ["super-admin"] },
 ]
 
 export function Sidebar() {
@@ -30,7 +30,7 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="w-64 bg-sidebar text-sidebar-foreground flex flex-col border-r border-sidebar-border">
+    <aside className="hidden md:flex w-64 bg-sidebar text-sidebar-foreground flex-col border-r border-sidebar-border">
       {/* Logo/Header */}
       <div className="p-6 border-b border-sidebar-border">
         <h1 className="text-2xl font-bold text-sidebar-primary">Stroy CRM</h1>
@@ -49,32 +49,33 @@ export function Sidebar() {
                 ? "Admin"
                 : user.role === "kassir"
                   ? "Kassir"
-                  : "Omborchi"}
+                  : user.role === "omborchi"
+                    ? "Omborchi"
+                    : "Sotuvchi"}
           </p>
         </div>
       )}
 
       {/* Navigation */}
       <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-        {NAV_ITEMS.map((item) => {
+        {NAV_ITEMS.filter(item => !user || item.roles.includes(user.role as any)).map((item) => {
           const isActive = pathname === item.href
           const Icon = item.icon
 
           return (
-            <RoleGate key={item.href} user={user} allowedRoles={item.roles as any}>
-              <Link
-                href={item.href}
-                className={cn(
-                  "flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-sm font-medium",
-                  isActive
-                    ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                )}
-              >
-                <Icon className="w-5 h-5 flex-shrink-0" />
-                <span>{item.label}</span>
-              </Link>
-            </RoleGate>
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-sm font-medium",
+                isActive
+                  ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                  : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+              )}
+            >
+              <Icon className="w-5 h-5 flex-shrink-0" />
+              <span>{item.label}</span>
+            </Link>
           )
         })}
       </nav>

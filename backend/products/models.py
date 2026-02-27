@@ -36,9 +36,9 @@ class Product(models.Model):
     category = models.CharField(max_length=100)
     short_code = models.CharField(max_length=20, unique=True, null=True, blank=True)
     
-    # Multi-unit system
-    base_unit = models.CharField(max_length=20, choices=BASE_UNIT_CHOICES, default='dona')
-    sell_unit = models.CharField(max_length=20, choices=SELL_UNIT_CHOICES, default='dona')
+    # Multi-unit system (now flexible strings)
+    base_unit = models.CharField(max_length=20, default='dona')
+    sell_unit = models.CharField(max_length=20, default='dona')
     unit_ratio = models.DecimalField(max_digits=10, decimal_places=3, default=1, 
                                      help_text="1 sell_unit = ? base_unit (masalan: 1 qop = 25 kg)")
     
@@ -54,8 +54,6 @@ class Product(models.Model):
     is_package_opened = models.BooleanField(default=False)
     opened_package_quantity = models.DecimalField(max_digits=15, decimal_places=2, default=0,
                                                    help_text="Ochilgan qop/rulondagi qoldiq (base_unit da)")
-    
-    branch = models.ForeignKey('core.Branch', on_delete=models.CASCADE, related_name='products')
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -142,12 +140,9 @@ class StockMovement(models.Model):
     type = models.CharField(max_length=20, choices=MOVEMENT_Types)
     quantity = models.DecimalField(max_digits=15, decimal_places=2, help_text="Quantity in base_unit")
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
-    branch = models.ForeignKey('core.Branch', on_delete=models.CASCADE, related_name='stock_movements')
-    
     # Metadata
     date = models.DateTimeField(auto_now_add=True)
     doc_number = models.CharField(max_length=50, blank=True, null=True)
-    supplier = models.CharField(max_length=100, blank=True, null=True)
     batch = models.CharField(max_length=50, blank=True, null=True)
     reason = models.CharField(max_length=255, blank=True, null=True)
 
